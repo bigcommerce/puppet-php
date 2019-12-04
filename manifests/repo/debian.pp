@@ -45,14 +45,16 @@ class php::repo::debian(
     source => $key['source'],
   }})
 
+  # bc modification - remove apt::source include param to maintain forward and
+  # backward compatibilty between puppetlabs-apt 2 and puppetlabs-apt 4
   ::apt::source { "source_php_${release}":
     location => $location,
     release  => $release,
     repos    => $repos,
-    include  => {
-      'src' => $include_src,
-      'deb' => true,
-    },
+    # include  => {
+    #   'src' => $include_src,
+    #   'deb' => true,
+    # },
     require  => Apt::Key['php::repo::debian'],
   }
 
@@ -64,10 +66,12 @@ class php::repo::debian(
         location => $location,
         release  => 'wheezy',
         repos    => $repos,
-        include  => {
-          'src' => $include_src,
-          'deb' => true,
-        },
+        # bc modification - remove apt::source include param to maintain forward and
+        # backward compatibilty between puppetlabs-apt 2 and puppetlabs-apt 4
+        # include  => {
+        #   'src' => $include_src,
+        #   'deb' => true,
+        # },
       }
     }
   }
@@ -86,10 +90,12 @@ class php::repo::debian(
       location => 'https://packages.sury.org/php/',
       release  => $facts['os']['distro']['codename'],
       repos    => 'main',
-      include  => {
-        'src' => $include_src,
-        'deb' => true,
-      },
+      # bc modification - remove apt::source include param to maintain forward and
+      # backward compatibilty between puppetlabs-apt 2 and puppetlabs-apt 4
+      # include  => {
+      #   'src' => $include_src,
+      #   'deb' => true,
+      # },
       require  => [
         Apt::Key['php::repo::debian-php71'],
         Package['apt-transport-https', 'lsb-release', 'ca-certificates']
