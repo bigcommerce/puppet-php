@@ -67,6 +67,10 @@
 # [*template*]
 #   The template to use for the pool
 #
+# [*process.dumpable*]
+#   Allow PHP to create a coredump during a segfault. Must still set
+#   rlimit_core
+#
 # [*rlimit_files*]
 #
 # [*rlimit_core*]
@@ -157,6 +161,7 @@ define php::fpm::pool (
   $php_directives                          = [],
   $root_group                              = $php::params::root_group,
   Optional[Stdlib::Absolutepath] $base_dir = undef,
+  Boolean $process_dumpable                = false,
 ) {
 
   # The base class must be included first because it is used by parameter defaults
