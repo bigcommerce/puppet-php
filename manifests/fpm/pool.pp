@@ -141,6 +141,7 @@ define php::fpm::pool (
   $request_slowlog_timeout   = '0',
   $security_limit_extensions = undef,
   $slowlog                   = "/var/log/php-fpm/${name}-slow.log",
+  $error_log                 = undef,
   $template                  = 'php/fpm/pool.conf.erb',
   $process_dumpable          = false,
   $rlimit_files              = undef,
