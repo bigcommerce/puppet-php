@@ -342,9 +342,15 @@ env[<%= key %>] = '<%= value %>'
 ; Default Value: nothing is defined by default except the values in php.ini and
 ;                specified at startup with the -d argument
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
-;php_flag[display_errors] = off
+<% if @error_log -%>
+php_flag[display_errors] = off
+php_admin_value[error_log] = <%= @error_log %>
+php_admin_flag[log_errors] = on
+<% else -%>
+php_flag[display_errors] = off
 ;php_admin_value[error_log] = /var/log/php-fpm/www-error.log
-;php_admin_flag[log_errors] = on
+php_admin_flag[log_errors] = off
+<% end -%>
 ;php_admin_value[memory_limit] = 32M
 
 ;
