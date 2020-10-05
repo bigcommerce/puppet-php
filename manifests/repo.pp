@@ -1,18 +1,17 @@
 # Configure package repository
 #
 class php::repo {
+  $msg_no_repo = "No repo available for ${facts['os']['family']}/${facts['os']['name']}"
 
-  $msg_no_repo = "No repo available for ${::osfamily}/${::operatingsystem}"
-
-  case $::osfamily {
+  case $facts['os']['family'] {
     'Debian': {
       # no contain here because apt does that already
-      case $::operatingsystem {
+      case $facts['os']['name'] {
         'Debian': {
-          include ::php::repo::debian
+          include php::repo::debian
         }
         'Ubuntu': {
-          include ::php::repo::ubuntu
+          include php::repo::ubuntu
         }
         default: {
           fail($msg_no_repo)
@@ -21,10 +20,10 @@ class php::repo {
     }
     'FreeBSD': {}
     'Suse': {
-      contain ::php::repo::suse
+      contain php::repo::suse
     }
     'RedHat': {
-      contain '::php::repo::redhat'
+      contain 'php::repo::redhat'
     }
     default: {
       fail($msg_no_repo)

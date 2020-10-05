@@ -17,6 +17,7 @@ describe 'php::config' do
               config: {}
             }
           end
+
           it { is_expected.to compile }
         end
 
@@ -55,7 +56,7 @@ describe 'php::config' do
             }
           end
 
-          it { expect { is_expected.to raise_error(Puppet::Error) } }
+          it { is_expected.to raise_error(Puppet::Error) }
         end
       else
         context 'default config' do
@@ -66,6 +67,7 @@ describe 'php::config' do
               config: {}
             }
           end
+
           it { is_expected.to compile }
         end
 
@@ -104,7 +106,7 @@ describe 'php::config' do
             }
           end
 
-          it { expect { is_expected.to raise_error(Puppet::Error) } }
+          it { is_expected.to raise_error(Puppet::Error) }
         end
       end
     end

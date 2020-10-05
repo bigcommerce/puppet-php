@@ -25,10 +25,13 @@
 # [*listen_mode*]
 #
 # [*user*]
-#   Which user the php-fpm process to run as
+#   The user that php-fpm should run as
 #
 # [*group*]
-#   Which group the php-fpm process to run as
+#   The group that php-fpm should run as
+#
+# [*apparmor_hat*]
+#   The Apparmor hat to use
 #
 # [*pm*]
 #
@@ -41,6 +44,8 @@
 # [*pm_max_spare_servers*]
 #
 # [*pm_max_requests*]
+#
+# [*pm_process_idle_timeout*]
 #
 # [*pm_status_path*]
 #
@@ -90,6 +95,9 @@
 #   Hash of environment variables and values as strings to use in php
 #   scripts in this pool
 #
+# [*clear_env*]
+#   Whether the environment should be cleared.
+#
 # [*options*]
 #   An optional hash for any other data.
 #
@@ -117,57 +125,61 @@
 #   '/etc/php5/fpm/pool.d' or '/etc/php-fpm.d'
 #
 define php::fpm::pool (
-  $ensure                    = 'present',
-  $listen                    = '127.0.0.1:9000',
-  $listen_backlog            = '-1',
-  $listen_allowed_clients    = undef,
-  $listen_owner              = undef,
-  $listen_group              = undef,
-  $listen_mode               = undef,
-  $user                      = $::php::fpm::config::user,
-  $group                     = $::php::fpm::config::group,
-  $pm                        = 'dynamic',
-  $pm_max_children           = '50',
-  $pm_start_servers          = '5',
-  $pm_min_spare_servers      = '5',
-  $pm_max_spare_servers      = '35',
-  $pm_max_requests           = '0',
-  $pm_status_path            = undef,
-  $ping_path                 = undef,
-  $ping_response             = 'pong',
-  $access_log                = undef,
-  $access_log_format         = "%R - %u %t \"%m %r\" %s",
-  $request_terminate_timeout = '0',
-  $request_slowlog_timeout   = '0',
-  $security_limit_extensions = undef,
-  $slowlog                   = "/var/log/php-fpm/${name}-slow.log",
-  $template                  = 'php/fpm/pool.conf.erb',
-  $process_dumpable          = false,
-  $rlimit_files              = undef,
-  $rlimit_core               = undef,
-  $chroot                    = undef,
-  $chdir                     = undef,
-  $catch_workers_output      = 'no',
-  $include                   = undef,
-  $env                       = [],
-  $env_value                 = {},
-  $options                   = {},
-  $php_value                 = {},
-  $php_flag                  = {},
-  $php_admin_value           = {},
-  $php_admin_flag            = {},
-  $php_directives            = [],
-  $root_group                = $::php::params::root_group,
-  $base_dir                  = undef,
+  $ensure                                  = 'present',
+  $listen                                  = '127.0.0.1:9000',
+  $listen_backlog                          = '-1',
+  $listen_allowed_clients                  = undef,
+  $listen_owner                            = undef,
+  $listen_group                            = undef,
+  $listen_mode                             = undef,
+  $user                                    = $php::fpm::config::user,
+  $group                                   = $php::fpm::config::group,
+  Optional[String[1]] $apparmor_hat        = undef,
+  $pm                                      = 'dynamic',
+  $pm_max_children                         = '50',
+  $pm_start_servers                        = '5',
+  $pm_min_spare_servers                    = '5',
+  $pm_max_spare_servers                    = '35',
+  $pm_max_requests                         = '0',
+  $pm_process_idle_timeout                 = '10s',
+  $pm_status_path                          = undef,
+  $ping_path                               = undef,
+  $ping_response                           = 'pong',
+  $access_log                              = undef,
+  $access_log_format                       = '"%R - %u %t \"%m %r\" %s"',
+  $request_terminate_timeout               = '0',
+  $request_slowlog_timeout                 = '0',
+  $security_limit_extensions               = undef,
+  $slowlog                                 = "/var/log/php-fpm/${name}-slow.log",
+  $template                                = 'php/fpm/pool.conf.erb',
+  $process_dumpable                        = false,
+  $rlimit_files                            = undef,
+  $rlimit_core                             = undef,
+  $chroot                                  = undef,
+  $chdir                                   = undef,
+  $catch_workers_output                    = 'no',
+  $include                                 = undef,
+  $env                                     = [],
+  $env_value                               = {},
+  $clear_env                               = true,
+  $options                                 = {},
+  $php_value                               = {},
+  $php_flag                                = {},
+  $php_admin_value                         = {},
+  $php_admin_flag                          = {},
+  $php_directives                          = [],
+  $root_group                              = $php::params::root_group,
+  Optional[Stdlib::Absolutepath] $base_dir = undef,
 ) {
-
   # The base class must be included first because it is used by parameter defaults
   if ! defined(Class['php']) {
     warning('You must include the php base class before using any php defined resources')
   }
 
-  if $base_dir != undef {
-    validate_absolute_path($base_dir)
+  if ($php::globals::php_version != undef) {
+    $php_version_major = regsubst($php::globals::php_version, '^(\d+)\.(\d+)$','\1')
+  } else {
+    $php_version_major = 5
   }
 
   $pool = $title
@@ -180,12 +192,12 @@ define php::fpm::pool (
 
   # On FreeBSD fpm is not a separate package, but included in the 'php' package.
   # Implies that the option SET+=FPM was set when building the port.
-  $real_package = $::osfamily ? {
+  $real_package = $facts['os']['name'] ? {
     'FreeBSD' => [],
-    default   => $::php::fpm::package,
+    default   => $php::fpm::package,
   }
 
-  $pool_base_dir = pick_default($base_dir, $::php::fpm::config::pool_base_dir, $::php::params::fpm_pool_dir)
+  $pool_base_dir = pick_default($base_dir, $php::fpm::config::pool_base_dir, $php::params::fpm_pool_dir)
   if ($ensure == 'absent') {
     file { "${pool_base_dir}/${pool}.conf":
       ensure => absent,
@@ -199,7 +211,7 @@ define php::fpm::pool (
       content => template($template),
       owner   => root,
       group   => $root_group,
-      mode    => '0644',
+      mode    => '0640',
     }
   }
 }

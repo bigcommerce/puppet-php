@@ -6,16 +6,33 @@ describe 'php::extension' do
       let :facts do
         facts
       end
-
       let(:pre_condition) { 'include php' }
 
       unless facts[:osfamily] == 'Suse' || facts[:osfamily] == 'FreeBSD' # FIXME: something is wrong on these
-        etcdir = case facts[:osfamily]
-                 when 'Debian'
-                   '/etc/php5/mods-available'
-                 else
-                   '/etc/php.d'
-                 end
+        etcdir =  case facts[:os]['name']
+                  when 'Debian'
+                    case facts[:os]['release']['major']
+                    when '10'
+                      '/etc/php/7.3/mods-available'
+                    when '9'
+                      '/etc/php/7.0/mods-available'
+                    else
+                      '/etc/php5/mods-available'
+                    end
+                  when 'Ubuntu'
+                    case facts[:os]['release']['major']
+                    when '18.04'
+                      '/etc/php/7.2/mods-available'
+                    when '16.04'
+                      '/etc/php/7.0/mods-available'
+                    else
+                      '/etc/php5/mods-available'
+                    end
+                  when 'Archlinux'
+                    '/etc/php/conf.d'
+                  else
+                    '/etc/php.d'
+                  end
 
         context 'installation from repository' do
           let(:title) { 'json' }
@@ -138,6 +155,27 @@ describe 'php::extension' do
           end
         end
 
+        context 'add ini file prefix if requested' do
+          let(:title) { 'zendopcache' }
+          let(:params) do
+            {
+              provider: 'pecl',
+              zend: true,
+              ini_prefix: '10-',
+              so_name: 'opcache'
+            }
+          end
+
+          it do
+            is_expected.to contain_php__config('zendopcache').with(
+              file: "#{etcdir}/10-opcache.ini",
+              config: {
+                'zend_extension' => 'opcache.so'
+              }
+            )
+          end
+        end
+
         context 'pecl extensions support php_api_version' do
           let(:title) { 'xdebug' }
           let(:params) do
@@ -151,12 +189,30 @@ describe 'php::extension' do
           it { is_expected.to contain_php__config('xdebug').with_config('zend_extension' => '/usr/lib/php5/20100525/xdebug.so') }
         end
 
-        case facts[:osfamily]
+        if facts[:os]['family'] == 'Debian'
+          context 'on Debian family' do
+            context 'zend extensions call ext_tool_enable' do
+              let(:title) { 'xdebug' }
+              let(:params) do
+                {
+                  zend: true
+                }
+              end
+
+              it { is_expected.to contain_exec('ext_tool_enable_xdebug') }
+            end
+          end
+        end
+
+        case facts[:os]['name']
         when 'Debian'
           context 'on Debian' do
             let(:title) { 'xdebug' }
 
             it { is_expected.to contain_php__config('xdebug').with_file("#{etcdir}/xdebug.ini") }
+
+            # note to consider: As of PHP 5.2.0, the JSON extension is bundled and compiled into PHP by default
+            # http://php.net/manual/en/json.installation.php
             context 'pecl installation' do
               let(:title) { 'json' }
               let(:params) do
@@ -175,12 +231,27 @@ describe 'php::extension' do
               it { is_expected.to contain_package('build-essential') }
               it do
                 is_expected.to contain_php__config('json').with(
-                  file: "#{etcdir}/json.ini",
+                  file: "#{etcdir}/nice_name.ini",
                   config: {
                     'extension' => 'nice_name.so',
                     'test'      => 'foo'
                   }
                 )
+              end
+            end
+          end
+        when 'Ubuntu'
+          context 'on Ubuntu' do
+            context 'do not setup mysql.ini' do
+              let(:title) { 'mysql' }
+              let(:params) do
+                {
+                  name: 'mysql'
+                }
+              end
+
+              it do
+                is_expected.to contain_file("#{etcdir}/mysql.ini").with(ensure: 'absent')
               end
             end
           end
